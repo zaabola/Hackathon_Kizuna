@@ -1,6 +1,8 @@
 import asyncio
 import json
+import re
 from functools import lru_cache
+from urllib.parse import quote
 
 from app.config import get_settings
 from app.schemas.messages import FamilyMessageItem, LanguageCode
@@ -12,6 +14,19 @@ from app.services.llm_client import LLMUnavailableError, chat_completion
 def load_templates() -> dict[str, str]:
     settings = get_settings()
     return json.loads((settings.data_dir / "message_templates.json").read_text(encoding="utf-8"))
+
+
+def build_send_links(phone: str, text: str) -> tuple[str, str]:
+    """Return (whatsapp_url, sms_url) pre-addressed to the family's phone number."""
+    digits = re.sub(r"\D+", "", phone or "")
+    encoded = quote(text, safe="")
+    if digits:
+        whatsapp_url = f"https://wa.me/{digits}?text={encoded}"
+        sms_url = f"sms:+{digits}?body={encoded}"
+    else:
+        whatsapp_url = f"https://wa.me/?text={encoded}"
+        sms_url = f"sms:?body={encoded}"
+    return whatsapp_url, sms_url
 
 
 def render_template_message(
@@ -70,22 +85,30 @@ async def _generate_one_message(
     try:
         llm_text = (await chat_completion(prompt, temperature=0.2, max_tokens=220)).strip()
         if _message_preserves_facts(llm_text, turn):
+            wa_url, sms_url = build_send_links(turn.phone, llm_text)
             return FamilyMessageItem(
                 family_id=turn.family_id,
                 family_name=turn.family_name,
+                phone=turn.phone,
                 language=language,
                 text=llm_text,
                 source="llm",
+                whatsapp_url=wa_url,
+                sms_url=sms_url,
             )
     except LLMUnavailableError:
         pass
 
+    wa_url, sms_url = build_send_links(turn.phone, fallback_text)
     return FamilyMessageItem(
         family_id=turn.family_id,
         family_name=turn.family_name,
+        phone=turn.phone,
         language=language,
         text=fallback_text,
         source="template",
+        whatsapp_url=wa_url,
+        sms_url=sms_url,
     )
 
 

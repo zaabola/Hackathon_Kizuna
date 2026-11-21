@@ -15,9 +15,12 @@ class FamilyMessageRequest(BaseModel):
 class FamilyMessageItem(BaseModel):
     family_id: str
     family_name: str
+    phone: str = "+216 55 548 015"
     language: LanguageCode
     text: str
     source: Literal["llm", "template"]
+    whatsapp_url: str = ""
+    sms_url: str = ""
 
 
 class FamilyMessageResponse(BaseModel):

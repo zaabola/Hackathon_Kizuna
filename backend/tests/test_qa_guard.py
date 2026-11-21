@@ -58,3 +58,21 @@ def test_qa_guard_accepts_plan_time():
     ok, reason = verify_grounded_answer(f"Your turn starts at {start} tonight.", plan)
     assert ok
     assert reason is None
+
+
+def test_qa_guard_accepts_peak_tariff_why_explanation():
+    plan = _sample_plan()
+    ok, reason = verify_grounded_answer(
+        "Because STEG cuts power 12:00-17:00 and evening peak 19:00-22:00 is expensive, irrigation runs at night.",
+        plan,
+    )
+    assert ok
+    assert reason is None
+
+
+def test_sms_whatsapp_links_include_test_phone():
+    from app.services.message_writer import build_send_links
+
+    wa, sms = build_send_links("+216 55 548 015", "Hello Fatma")
+    assert wa.startswith("https://wa.me/21655548015?text=")
+    assert sms.startswith("sms:+21655548015?body=")
