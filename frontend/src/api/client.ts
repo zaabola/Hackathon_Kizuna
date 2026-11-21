@@ -1,4 +1,5 @@
 import type {
+  FamilyInput,
   FamilyMessageItem,
   HealthResponse,
   LanguageCode,
@@ -24,6 +25,30 @@ export async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch("/api/health");
   if (!res.ok) throw new Error("Health check failed");
   return (await res.json()) as HealthResponse;
+}
+
+export async function fetchSampleFamilies(): Promise<FamilyInput[]> {
+  const res = await fetch("/api/families/sample");
+  if (!res.ok) throw new Error("Failed to load sample families CSV");
+  return (await res.json()) as FamilyInput[];
+}
+
+export async function exportPlanCsv(plan: PlanResponse): Promise<void> {
+  const res = await fetch("/api/plan/export-csv", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(plan),
+  });
+  if (!res.ok) throw new Error("Failed to export plan CSV");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `nouba_plan_${plan.weather.date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function generatePlan(req: PlanRequest): Promise<PlanResponse> {

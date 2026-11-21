@@ -40,6 +40,9 @@ export interface BoreholeConfig {
 export interface FamilyInput {
   id: string;
   name: string;
+  phone: string;
+  oasis_sector?: string;
+  plot_code?: string;
   crop: CropType;
   area_ha: number;
 }
@@ -69,6 +72,7 @@ export interface HourlyPlanEntry {
 export interface NightTurn {
   family_id: string;
   family_name: string;
+  phone: string;
   crop: CropType;
   need_m3: number;
   allocated_m3: number;
@@ -120,9 +124,12 @@ export interface PlanResponse {
 export interface FamilyMessageItem {
   family_id: string;
   family_name: string;
+  phone: string;
   language: LanguageCode;
   text: string;
   source: "llm" | "template";
+  whatsapp_url: string;
+  sms_url: string;
 }
 
 export interface QAResponse {

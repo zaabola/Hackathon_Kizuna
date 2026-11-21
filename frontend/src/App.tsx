@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchHealth, generateMessages, generatePlan } from "./api/client";
+import { exportPlanCsv, fetchHealth, fetchSampleFamilies, generateMessages, generatePlan } from "./api/client";
 import { ComparisonCards } from "./components/ComparisonCards";
 import { FamilyMessages } from "./components/FamilyMessages";
 import { FamilyQA } from "./components/FamilyQA";
@@ -32,11 +32,11 @@ const DEFAULT_BOREHOLE: BoreholeConfig = {
 };
 
 const DEFAULT_FAMILIES: FamilyInput[] = [
-  { id: "f1", name: "Fatma", crop: "date_palm", area_ha: 1.4 },
-  { id: "f2", name: "Ali", crop: "date_palm", area_ha: 1.2 },
-  { id: "f3", name: "Salma", crop: "date_palm", area_ha: 1.1 },
-  { id: "f4", name: "Hedi", crop: "olive", area_ha: 1.8 },
-  { id: "f5", name: "Noura", crop: "vegetables", area_ha: 0.9 },
+  { id: "f1", name: "Fatma Ben Amor", phone: "+216 55 548 015", crop: "date_palm", area_ha: 1.4 },
+  { id: "f2", name: "Ali Mansouri", phone: "+216 55 548 015", crop: "date_palm", area_ha: 1.2 },
+  { id: "f3", name: "Salma Trabelsi", phone: "+216 55 548 015", crop: "date_palm", area_ha: 1.1 },
+  { id: "f4", name: "Hedi Khelifi", phone: "+216 55 548 015", crop: "olive", area_ha: 1.8 },
+  { id: "f5", name: "Noura Gharbi", phone: "+216 55 548 015", crop: "vegetables", area_ha: 0.9 },
 ];
 
 export function App() {
@@ -72,7 +72,8 @@ export function App() {
 
   const cutLabel = `${String(cutWindow.start_hour).padStart(2, "0")}:00-${String(cutWindow.end_hour).padStart(2, "0")}:00`;
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (overrideFamilies?: FamilyInput[]) => {
+    const activeFamilies = overrideFamilies ?? families;
     setLoadingPlan(true);
     setError(null);
     try {
@@ -80,7 +81,7 @@ export function App() {
         weather_mode: weatherMode,
         cut_windows: [cutWindow],
         borehole,
-        families,
+        families: activeFamilies,
         rotation_offset: 0,
       });
       setPlan(nextPlan);
@@ -92,6 +93,26 @@ export function App() {
     } finally {
       setLoadingPlan(false);
       setLoadingMsgs(false);
+    }
+  };
+
+  const handleLoadFullCsv = async () => {
+    setError(null);
+    try {
+      const allFamilies = await fetchSampleFamilies();
+      setFamilies(allFamilies);
+      await handleGenerate(allFamilies);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load 25-family CSV");
+    }
+  };
+
+  const handleExportPlanCsv = async () => {
+    if (!plan) return;
+    try {
+      await exportPlanCsv(plan);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export CSV");
     }
   };
 
@@ -135,7 +156,10 @@ export function App() {
         families={families}
         onFamiliesChange={setFamilies}
         loading={loadingPlan}
-        onGenerate={handleGenerate}
+        onGenerate={() => void handleGenerate()}
+        onLoadFullCsv={() => void handleLoadFullCsv()}
+        onExportPlanCsv={() => void handleExportPlanCsv()}
+        plan={plan}
       />
 
       {error && <div className="warn-box" role="alert">{error}</div>}
@@ -160,7 +184,7 @@ export function App() {
             </p>
           </section>
 
-          <PumpingChart lang={lang} hourly={plan.hourly_plan} basinCapacity={plan.basin_capacity_m3} />
+          <PumpingChart lang={lang} plan={plan} />
           <NightSchedule lang={lang} turns={plan.night_turns} />
           <ComparisonCards lang={lang} plan={plan} />
           <SurpriseCutTest lang={lang} surprise={plan.surprise_cut} />

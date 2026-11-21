@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import type { BoreholeConfig, CropType, CutWindow, FamilyInput, LanguageCode, SolarType, WeatherMode } from "../types/nouba";
+import type { BoreholeConfig, CropType, CutWindow, FamilyInput, LanguageCode, PlanResponse, SolarType, WeatherMode } from "../types/nouba";
 
 interface Props {
   lang: LanguageCode;
@@ -13,6 +13,9 @@ interface Props {
   onFamiliesChange: (f: FamilyInput[]) => void;
   loading: boolean;
   onGenerate: () => void;
+  onLoadFullCsv: () => void;
+  onExportPlanCsv: () => void;
+  plan: PlanResponse | null;
 }
 
 export function InputsPanel({
@@ -27,10 +30,60 @@ export function InputsPanel({
   onFamiliesChange,
   loading,
   onGenerate,
+  onLoadFullCsv,
+  onExportPlanCsv,
+  plan,
 }: Props) {
   const updateFamily = (idx: number, patch: Partial<FamilyInput>) => {
     const next = families.map((f, i) => (i === idx ? { ...f, ...patch } : f));
     onFamiliesChange(next);
+  };
+
+  const addFamily = () => {
+    const nextIdx = families.length + 1;
+    onFamiliesChange([
+      ...families,
+      {
+        id: `f${nextIdx}`,
+        name: `Family ${nextIdx}`,
+        phone: "+216 55 548 015",
+        oasis_sector: "Douz Nord",
+        plot_code: `P-${nextIdx}`,
+        crop: "date_palm",
+        area_ha: 1.0,
+      },
+    ]);
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return;
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const idxOf = (key: string) => headers.indexOf(key);
+
+    const parsed: FamilyInput[] = [];
+    for (let i = 1; i < lines.length && parsed.length < 50; i++) {
+      const cols = lines[i].split(",").map((c) => c.trim());
+      const name = cols[idxOf("name")] || cols[idxOf("family_name")] || `Family ${i}`;
+      const rawCrop = (cols[idxOf("crop")] || "date_palm") as CropType;
+      const crop: CropType =
+        rawCrop === "olive" || rawCrop === "vegetables" || rawCrop === "date_palm" ? rawCrop : "date_palm";
+      const area = parseFloat(cols[idxOf("area_ha")] || "1.0");
+      parsed.push({
+        id: cols[idxOf("id")] || `f${i}`,
+        name,
+        phone: cols[idxOf("phone")] || "+216 55 548 015",
+        oasis_sector: idxOf("oasis_sector") >= 0 ? cols[idxOf("oasis_sector")] : "",
+        plot_code: idxOf("plot_code") >= 0 ? cols[idxOf("plot_code")] : "",
+        crop,
+        area_ha: Number.isFinite(area) && area > 0 ? area : 1.0,
+      });
+    }
+    if (parsed.length > 0) onFamiliesChange(parsed);
+    e.target.value = "";
   };
 
   return (
@@ -86,8 +139,8 @@ export function InputsPanel({
       </div>
 
       <details style={{ marginTop: "0.9rem" }}>
-        <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.9rem" }}>
-          Borehole &amp; Families (Assumed Demo Setup — Editable)
+        <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.92rem" }}>
+          Borehole &amp; Families ({families.length} families loaded — Editable &amp; CSV Import/Export)
         </summary>
         <div className="grid-3" style={{ marginTop: "0.75rem" }}>
           <div>
@@ -119,11 +172,33 @@ export function InputsPanel({
           </div>
         </div>
 
-        <div style={{ marginTop: "0.75rem", overflowX: "auto" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.85rem" }}>
+          <button type="button" className="btn" onClick={onLoadFullCsv}>
+            Load 25-Family Kebili CSV
+          </button>
+          <a className="btn" href="/api/families/csv" download="kebili_borehole_families.csv">
+            Download 25-Family CSV
+          </a>
+          <label className="btn" style={{ marginBottom: 0, cursor: "pointer" }}>
+            Upload CSV
+            <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} style={{ display: "none" }} />
+          </label>
+          {plan && (
+            <button type="button" className="btn" onClick={onExportPlanCsv}>
+              Export Plan CSV
+            </button>
+          )}
+          <button type="button" className="btn" onClick={addFamily}>
+            + Add Family
+          </button>
+        </div>
+
+        <div style={{ marginTop: "0.75rem", overflowX: "auto", maxHeight: "340px", overflowY: "auto" }}>
           <table>
             <thead>
               <tr>
                 <th>Family</th>
+                <th>Phone</th>
                 <th>Crop</th>
                 <th>Area (ha)</th>
               </tr>
@@ -136,6 +211,13 @@ export function InputsPanel({
                       aria-label={`Family ${idx + 1} name`}
                       value={fam.name}
                       onChange={(e) => updateFamily(idx, { name: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      aria-label={`Family ${idx + 1} phone`}
+                      value={fam.phone}
+                      onChange={(e) => updateFamily(idx, { phone: e.target.value })}
                     />
                   </td>
                   <td>
