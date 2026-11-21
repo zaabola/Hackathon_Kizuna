@@ -1,8 +1,10 @@
+import csv
+import io
 from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
@@ -12,7 +14,7 @@ from app.schemas.messages import (
     QARequest,
     QAResponse,
 )
-from app.schemas.plan import PlanRequest, PlanResponse, WeatherMode, WeatherResponse
+from app.schemas.plan import FamilyInput, PlanRequest, PlanResponse, WeatherMode, WeatherResponse
 from app.services.comparison import (
     compute_fixed_rotation_comparisons,
     simulate_surprise_cut,
@@ -55,6 +57,89 @@ async def health() -> dict[str, str | bool]:
 @app.get("/api/weather", response_model=WeatherResponse)
 async def api_weather(mode: WeatherMode = "heatwave_2026_07_26") -> WeatherResponse:
     return await get_weather(mode)
+
+
+@app.get("/api/families/sample", response_model=list[FamilyInput])
+async def api_sample_families() -> list[FamilyInput]:
+    """Return the full 25-family Kebili borehole dataset from CSV."""
+    settings = get_settings()
+    csv_path = settings.data_dir / "kebili_borehole_families.csv"
+    rows: list[FamilyInput] = []
+    with csv_path.open("r", encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            rows.append(
+                FamilyInput(
+                    id=r["id"],
+                    name=r["name"],
+                    phone=r.get("phone") or "+216 55 548 015",
+                    oasis_sector=r.get("oasis_sector", ""),
+                    plot_code=r.get("plot_code", ""),
+                    crop=r["crop"],  # type: ignore[arg-type]
+                    area_ha=float(r["area_ha"]),
+                )
+            )
+    return rows
+
+
+@app.get("/api/families/csv")
+async def api_download_families_csv() -> FileResponse:
+    """Download the Kebili borehole & 25-family CSV file."""
+    settings = get_settings()
+    csv_path = settings.data_dir / "kebili_borehole_families.csv"
+    return FileResponse(
+        csv_path,
+        media_type="text/csv",
+        filename="kebili_borehole_families.csv",
+    )
+
+
+@app.post("/api/plan/export-csv", response_class=PlainTextResponse)
+async def api_export_plan_csv(plan: PlanResponse) -> PlainTextResponse:
+    """Export today's full borehole + family irrigation plan as a downloadable CSV."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "date",
+        "weather_source",
+        "daily_quota_m3",
+        "basin_capacity_m3",
+        "total_pumped_m3",
+        "solar_share_pct",
+        "total_cost_tnd",
+        "family_id",
+        "family_name",
+        "phone",
+        "crop",
+        "need_m3",
+        "allocated_m3",
+        "share_pct",
+        "start_time",
+        "end_time",
+    ])
+    for turn in plan.night_turns:
+        writer.writerow([
+            plan.weather.date,
+            plan.weather.source,
+            plan.daily_quota_m3,
+            plan.basin_capacity_m3,
+            plan.total_pumped_m3,
+            plan.solar_share_pct,
+            plan.total_cost_tnd,
+            turn.family_id,
+            turn.family_name,
+            turn.phone,
+            turn.crop,
+            turn.need_m3,
+            turn.allocated_m3,
+            turn.share_pct,
+            turn.start_time,
+            turn.end_time,
+        ])
+    return PlainTextResponse(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="nouba_plan_{plan.weather.date}.csv"'},
+    )
 
 
 @app.post("/api/plan", response_model=PlanResponse)

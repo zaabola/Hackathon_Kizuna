@@ -149,6 +149,7 @@ def build_night_turns(
             NightTurn(
                 family_id=fam.id,
                 family_name=fam.name,
+                phone=fam.phone,
                 crop=fam.crop,
                 need_m3=round(need, 2),
                 allocated_m3=alloc,

@@ -59,6 +59,9 @@ class BoreholeConfig(BaseModel):
 class FamilyInput(BaseModel):
     id: str = Field(..., min_length=1, max_length=32)
     name: str = Field(..., min_length=1, max_length=64)
+    phone: str = Field("+216 55 548 015", max_length=32)
+    oasis_sector: str = Field("", max_length=64)
+    plot_code: str = Field("", max_length=32)
     crop: CropType = "date_palm"
     area_ha: float = Field(..., gt=0, le=100)
 
@@ -67,7 +70,7 @@ class PlanRequest(BaseModel):
     weather_mode: WeatherMode = "heatwave_2026_07_26"
     cut_windows: list[CutWindow] = Field(default_factory=lambda: [CutWindow(start_hour=12, end_hour=17)])
     borehole: BoreholeConfig = Field(default_factory=BoreholeConfig)
-    families: list[FamilyInput] = Field(..., min_length=1, max_length=20)
+    families: list[FamilyInput] = Field(..., min_length=1, max_length=50)
     rotation_offset: int = Field(0, ge=0)
     surprise_cut_window: CutWindow | None = None
 
@@ -88,6 +91,7 @@ class HourlyPlanEntry(BaseModel):
 class NightTurn(BaseModel):
     family_id: str
     family_name: str
+    phone: str = "+216 55 548 015"
     crop: CropType
     need_m3: float
     allocated_m3: float
