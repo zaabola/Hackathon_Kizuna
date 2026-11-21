@@ -1,0 +1,7 @@
+{
+  "ar": "{family_name}، نوبتك الليلة من {start_time} إلى {end_time}، الكمية {volume_m3} م³ ({share_pct}% من الحاجة). سبب النسبة: الحصة اليومية للبئر ({quota_m3} م³) مقسمة بالتساوي. انقطاع الكهرباء: {cut_window}.",
+  "tn-darija": "{family_name}، نوبتك الليلة من {start_time} لـ {end_time}، الكمية {volume_m3} م³ ({share_pct}% من الحاجة). الحصة اليومية للبئر ({quota_m3} م³) تقسمت بالعدل بين العائلات الكل. قصّان الضوء: {cut_window}.",
+  "fr": "{family_name}, votre tour cette nuit est de {start_time} à {end_time}, volume {volume_m3} m³ ({share_pct}% du besoin). Le quota du forage ({quota_m3} m³) est partagé équitablement. Coupure STEG : {cut_window}.",
+  "en": "{family_name}, your turn tonight is {start_time} to {end_time}, volume {volume_m3} m³ ({share_pct}% of need). The borehole quota ({quota_m3} m³) is shared equally. STEG cut: {cut_window}.",
+  "ja": "{family_name}さん、今夜の番水は {start_time}〜{end_time}、水量は {volume_m3} m³（必要量の {share_pct}%）です。井戸の上限（{quota_m3} m³）を全世帯で公平に分けています。停電予定：{cut_window}。"
+}

@@ -1,0 +1,33 @@
+{
+  "location": "Kebili, Tunisia",
+  "latitude": 33.7044,
+  "longitude": 8.969,
+  "date": "2026-07-26",
+  "source": "Saved ERA5 / INM heatwave reference day (26 July 2026)",
+  "hourly": [
+    {"hour": 0,  "temp_c": 31.2, "rh_pct": 24, "wind_ms": 2.4, "et0_mm": 0.12, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 1,  "temp_c": 30.1, "rh_pct": 26, "wind_ms": 2.2, "et0_mm": 0.10, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 2,  "temp_c": 29.3, "rh_pct": 28, "wind_ms": 2.0, "et0_mm": 0.09, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 3,  "temp_c": 28.5, "rh_pct": 30, "wind_ms": 1.9, "et0_mm": 0.08, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 4,  "temp_c": 27.9, "rh_pct": 31, "wind_ms": 1.8, "et0_mm": 0.08, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 5,  "temp_c": 27.6, "rh_pct": 32, "wind_ms": 2.0, "et0_mm": 0.09, "solar_wm2": 18,  "rain_mm": 0},
+    {"hour": 6,  "temp_c": 29.4, "rh_pct": 27, "wind_ms": 2.5, "et0_mm": 0.18, "solar_wm2": 165, "rain_mm": 0},
+    {"hour": 7,  "temp_c": 32.8, "rh_pct": 21, "wind_ms": 3.1, "et0_mm": 0.36, "solar_wm2": 380, "rain_mm": 0},
+    {"hour": 8,  "temp_c": 36.4, "rh_pct": 15, "wind_ms": 3.8, "et0_mm": 0.58, "solar_wm2": 605, "rain_mm": 0},
+    {"hour": 9,  "temp_c": 39.8, "rh_pct": 11, "wind_ms": 4.4, "et0_mm": 0.80, "solar_wm2": 790, "rain_mm": 0},
+    {"hour": 10, "temp_c": 42.6, "rh_pct": 8,  "wind_ms": 4.9, "et0_mm": 0.99, "solar_wm2": 925, "rain_mm": 0},
+    {"hour": 11, "temp_c": 45.0, "rh_pct": 6,  "wind_ms": 5.3, "et0_mm": 1.12, "solar_wm2": 995, "rain_mm": 0},
+    {"hour": 12, "temp_c": 46.8, "rh_pct": 5,  "wind_ms": 5.6, "et0_mm": 1.19, "solar_wm2": 1015,"rain_mm": 0},
+    {"hour": 13, "temp_c": 47.7, "rh_pct": 5,  "wind_ms": 5.8, "et0_mm": 1.21, "solar_wm2": 980, "rain_mm": 0},
+    {"hour": 14, "temp_c": 48.1, "rh_pct": 5,  "wind_ms": 5.9, "et0_mm": 1.18, "solar_wm2": 895, "rain_mm": 0},
+    {"hour": 15, "temp_c": 47.6, "rh_pct": 6,  "wind_ms": 5.7, "et0_mm": 1.07, "solar_wm2": 755, "rain_mm": 0},
+    {"hour": 16, "temp_c": 46.2, "rh_pct": 7,  "wind_ms": 5.3, "et0_mm": 0.89, "solar_wm2": 575, "rain_mm": 0},
+    {"hour": 17, "temp_c": 44.1, "rh_pct": 9,  "wind_ms": 4.8, "et0_mm": 0.67, "solar_wm2": 360, "rain_mm": 0},
+    {"hour": 18, "temp_c": 41.3, "rh_pct": 12, "wind_ms": 4.1, "et0_mm": 0.43, "solar_wm2": 145, "rain_mm": 0},
+    {"hour": 19, "temp_c": 38.5, "rh_pct": 15, "wind_ms": 3.5, "et0_mm": 0.27, "solar_wm2": 12,  "rain_mm": 0},
+    {"hour": 20, "temp_c": 36.2, "rh_pct": 18, "wind_ms": 3.1, "et0_mm": 0.20, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 21, "temp_c": 34.5, "rh_pct": 20, "wind_ms": 2.8, "et0_mm": 0.17, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 22, "temp_c": 33.1, "rh_pct": 21, "wind_ms": 2.6, "et0_mm": 0.15, "solar_wm2": 0,   "rain_mm": 0},
+    {"hour": 23, "temp_c": 32.0, "rh_pct": 23, "wind_ms": 2.5, "et0_mm": 0.13, "solar_wm2": 0,   "rain_mm": 0}
+  ]
+}
