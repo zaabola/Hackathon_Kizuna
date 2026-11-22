@@ -18,17 +18,14 @@ const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : 
 const longDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 // Solar kWh replace grid kWh: IFI harmonised grid emission factor for intermittent renewables, Tunisia (UNFCCC, 2019).
 const CO2_KG_PER_KWH = 0.47
-// Shown only when steg.com.tn cannot be reached: notices verified in the press (Le Temps 3 Aug, Businessnews 31 Aug 2026).
-const SAVED_NOTICES = [{ date: '2026-08-03', window: '12:00–17:00', start: 12, end: 17 }, { date: '2026-08-31', window: '20:00–02:00', start: 20, end: 2 }]
-
 // The GDA's own borehole and families, saved on this device; the day's cut is not saved.
 const STORE = 'nouba.setup.v1'
 function loadSetup(): Setup {
   try {
     const x = parseSetup(JSON.parse(localStorage.getItem(STORE) ?? 'null'))
-    if (x) return x
+    if (x) return { ...x, cut: null }
   } catch { /* private mode or damaged data: start from the demo borehole */ }
-  return DEMO_SETUP
+  return { ...DEMO_SETUP, cut: null }
 }
 
 // Lucide-style stroke icons, inline so there is no icon dependency.
@@ -142,13 +139,12 @@ export default function App() {
     fetch('/api/steg').then(r => r.json()).then(setSteg).catch(() => setSteg({ error: 'unreachable' }))
   }, [])
   useEffect(() => { touched.current = false }, [mode])
-  // The day's cut follows STEG: the heatwave demo keeps the documented 12:00-17:00 window; today and tomorrow use
-  // STEG's notice for that date if there is one, and no cut if STEG announced none.
-  const autoCut = (): Setup['cut'] => {
-    if (mode === 'canicule') return [12, 17]
-    const n = w && steg && 'notices' in steg ? noticeFor(steg.notices, w.date) : undefined
-    return n ? [n.start, n.end % 24] : null
-  }
+  // The day's cut comes directly from steg.com.tn for today's Tunis calendar date (or tomorrow); if STEG announced none, there is no cut unless entered manually.
+  const todayTunis = new Date(Date.now() + 3600_000 + (mode === 'tomorrow' ? 864e5 : 0)).toISOString().slice(0, 10)
+  const liveNotices = steg && 'notices' in steg ? steg.notices : null
+  const latestCut = liveNotices?.[0]
+  const stegCutToday = liveNotices ? noticeFor(liveNotices, todayTunis) : undefined
+  const autoCut = (): Setup['cut'] => stegCutToday ? [stegCutToday.start, stegCutToday.end % 24] : null
   useEffect(() => { if (w && !touched.current) set({ cut: autoCut() }) }, [w, steg, mode])
 
   useEffect(() => {
@@ -187,61 +183,64 @@ export default function App() {
         </div>
 
         <div className="group">
-          <h3>Simulated day</h3>
+          <h3>1 · Borehole type <span>{plural(s.members.length, 'family', 'families')}</span></h3>
+          <div className="seg dark" role="group" aria-label="Borehole type">
+            <button aria-pressed={s.members.length > 1} onClick={() => { touched.current = false; setS({ ...DEMO_SETUP, cut: autoCut() }) }}>Shared GDA (5)</button>
+            <button aria-pressed={s.members.length === 1} onClick={() => { touched.current = false; setS({ ...FARM_SETUP, cut: autoCut() }) }}>Single farm (1)</button>
+          </div>
+        </div>
+
+        <div className="group">
+          <h3>2 · Weather &amp; STEG cut</h3>
           <div className="seg dark" role="group" aria-label="Simulated day">
             <button aria-pressed={mode === 'canicule'} onClick={() => setMode('canicule')}>Heatwave 48 °C</button>
             <button aria-pressed={mode === 'today'} onClick={() => setMode('today')}>Today</button>
             <button aria-pressed={mode === 'tomorrow'} onClick={() => setMode('tomorrow')}>Tomorrow</button>
           </div>
-          {w && <p className="meta">Kebili {w.date} · max {Math.max(...w.temp).toLocaleString('en-US', { maximumFractionDigits: 1 })} °C · ET0 {w.et0.reduce((a, b) => a + b, 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} mm/day<br />{mode === 'canicule' ? 'ERA5 reanalysis (Open-Meteo), ~25 km grid · INM Kebili station: 48.1 °C max (23–26 Jul)' : `Live forecast for ${mode === 'tomorrow' ? 'tomorrow' : 'today'} from ${w.source}. ${w.note}.`}</p>}
-        </div>
-
-        <div className="group">
-          <h3>Pump energy <span>{s.pumpKw} kW · {s.pumpM3h} m³/h</span></h3>
-          <div className="options" role="radiogroup" aria-label="Pump energy">
-            {([['aucun', 'STEG grid only', 'plug'], ['reseau', 'Grid-tied solar', 'panel'], ['hybride', 'Hybrid solar', 'sun'], ['isole', 'Standalone solar (no grid)', 'sun']] as [PvType, string, keyof typeof PATHS][]).map(([v, l, ic]) =>
-              <label key={v} className="option"><input type="radio" name="pv" checked={s.pv === v} onChange={() => set({ pv: v })} /><Icon name={ic} /> {l}</label>)}
-          </div>
-          <p className="meta">{{
-            aucun: 'Pump runs on the STEG grid only.',
-            reseau: 'Grid-tied inverter: it stops when the grid fails (anti-islanding), so no solar during a cut.',
-            hybride: 'Hybrid inverter: keeps pumping on solar during a cut, with the grid as backup.',
-            isole: 'Solar pump with no grid, the most common setup in Kebili: never cut, but no pumping at night.',
-          }[s.pv]}</p>
-          {s.pv !== 'aucun' && <Slider label="Solar power" unit="kWc" min={5} max={60} value={s.pvKwp} onChange={v => set({ pvKwp: v })} />}
-        </div>
-
-        <div className="group">
-          <h3>Aquifer and basin</h3>
-          <Slider label="Daily aquifer quota" unit="m³" min={100} max={1000} step={10} value={s.quotaM3} onChange={v => set({ quotaM3: v })} />
-          <Slider label="Basin capacity" unit="m³" min={100} max={1500} step={50} value={s.basinM3} onChange={v => set({ basinM3: v, basinStartM3: Math.min(s.basinStartM3, v) })} />
-          <Slider label="Level at 06:00" unit="m³" min={0} max={s.basinM3} step={10} value={s.basinStartM3} onChange={v => set({ basinStartM3: v })} />
-        </div>
-
-        <div className="group">
-          <h3>Your borehole</h3>
-          <div className="fields">
-            <Field label="Pump power" unit="kW" min={1} max={200} value={s.pumpKw} onChange={v => set({ pumpKw: v })} />
-            <Field label="Pump flow" unit="m³/h" min={1} max={500} value={s.pumpM3h} onChange={v => set({ pumpM3h: v })} />
-            <Field label="Basin outlet" unit="m³/h" min={5} max={500} value={s.outletM3h} onChange={v => set({ outletM3h: v })} />
-            <Field label="Efficiency" unit="%" min={30} max={95} value={Math.round(s.efficiency * 100)} onChange={v => set({ efficiency: v / 100 })} />
-            <Field label="Water fee" unit="mill/m³" min={0} max={5000} value={Math.round((s.feeM3 ?? 0) * 1000)} onChange={v => set({ feeM3: v / 1000 })} />
-          </div>
-          <p className="meta">Families, phones and these values are saved on this device only.</p>
-          <div className="seg dark" role="group" aria-label="Start from">
-            <button onClick={() => { touched.current = false; setS({ ...DEMO_SETUP, cut: autoCut() }) }}>Shared borehole (GDA)</button>
-            <button onClick={() => { touched.current = false; setS({ ...FARM_SETUP, cut: autoCut() }) }}>Single farm</button>
-          </div>
-        </div>
-
-        <div className="group">
-          <h3>Custom cut</h3>
-          <label className="check"><input type="checkbox" checked={!!s.cut} onChange={e => pickCut(e.target.checked ? [13, 17] : null)} /> Announced cut</label>
+          {w && <p className="meta">Kebili {mode === 'canicule' ? `${w.date} (archive)` : todayTunis} · max {Math.max(...w.temp).toLocaleString('en-US', { maximumFractionDigits: 1 })} °C · ET0 {w.et0.reduce((a, b) => a + b, 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} mm/day</p>}
+          <p className="meta">{!steg ? 'Checking steg.com.tn news…' : 'error' in steg ? 'steg.com.tn unreachable: no cut applied.' : <>
+            {stegCutToday ? <><b>STEG news:</b> cut announced {stegCutToday.window} for {todayTunis}.</> : <><b>STEG news:</b> no power cut announced for {todayTunis}.</>}
+            {latestCut && <><br />Last cut: <b>{longDate(latestCut.date)} ({latestCut.window})</b><br />
+              Source: <a className="panel-link" href={latestCut.url} target="_blank" rel="noopener noreferrer">STEG notice ({latestCut.date}) ↗</a> · <a className="panel-link" href={steg.source} target="_blank" rel="noopener noreferrer">steg.com.tn ↗</a></>}
+          </>}</p>
+          <label className="check"><input type="checkbox" checked={!!s.cut} onChange={e => pickCut(e.target.checked ? [12, 17] : null)} /> Manual power cut</label>
           {s.cut && <div className="hours">
             <label>from <input type="number" min={0} max={23} value={s.cut[0]} onChange={e => e.target.value !== '' && pickCut([clampH(e.target.value), s.cut![1]])} /> h</label>
             <label>to <input type="number" min={0} max={23} value={s.cut[1]} onChange={e => e.target.value !== '' && pickCut([s.cut![0], clampH(e.target.value)])} /> h</label>
           </div>}
         </div>
+
+        <div className="group">
+          <h3>3 · Pump energy <span>{s.pumpKw} kW · {s.pumpM3h} m³/h</span></h3>
+          <div className="options grid2" role="radiogroup" aria-label="Pump energy">
+            {([['reseau', 'Grid-tied solar', 'panel'], ['hybride', 'Hybrid solar', 'sun'], ['isole', 'Off-grid solar', 'sun'], ['aucun', 'STEG grid only', 'plug']] as [PvType, string, keyof typeof PATHS][]).map(([v, l, ic]) =>
+              <label key={v} className="option"><input type="radio" name="pv" checked={s.pv === v} onChange={() => set({ pv: v })} /><Icon name={ic} /> {l}</label>)}
+          </div>
+          <p className="meta">{{
+            aucun: 'Pump runs on the STEG grid only.',
+            reseau: 'Grid-tied inverter: stops during a STEG cut (anti-islanding).',
+            hybride: 'Hybrid inverter: keeps pumping on solar during a cut, with grid backup.',
+            isole: 'Off-grid solar pump: never cut, zero bill, no night pumping.',
+          }[s.pv]}</p>
+          {s.pv !== 'aucun' && <Slider label="Solar power" unit="kWc" min={5} max={60} value={s.pvKwp} onChange={v => set({ pvKwp: v })} />}
+          <Slider label="Daily water quota" unit="m³" min={100} max={1000} step={10} value={s.quotaM3} onChange={v => set({ quotaM3: v })} />
+        </div>
+
+        <details className="adv">
+          <summary>Advanced borehole specs <span>{s.basinM3} m³ basin · {Math.round(s.efficiency * 100)}%</span></summary>
+          <div className="adv-body">
+            <Slider label="Basin capacity" unit="m³" min={100} max={1500} step={50} value={s.basinM3} onChange={v => set({ basinM3: v, basinStartM3: Math.min(s.basinStartM3, v) })} />
+            <Slider label="Level at 06:00" unit="m³" min={0} max={s.basinM3} step={10} value={s.basinStartM3} onChange={v => set({ basinStartM3: v })} />
+            <div className="fields">
+              <Field label="Pump power" unit="kW" min={1} max={200} value={s.pumpKw} onChange={v => set({ pumpKw: v })} />
+              <Field label="Pump flow" unit="m³/h" min={1} max={500} value={s.pumpM3h} onChange={v => set({ pumpM3h: v })} />
+              <Field label="Basin outlet" unit="m³/h" min={5} max={500} value={s.outletM3h} onChange={v => set({ outletM3h: v })} />
+              <Field label="Efficiency" unit="%" min={30} max={95} value={Math.round(s.efficiency * 100)} onChange={v => set({ efficiency: v / 100 })} />
+              <Field label="Water fee" unit="mill/m³" min={0} max={5000} value={Math.round((s.feeM3 ?? 0) * 1000)} onChange={v => set({ feeM3: v / 1000 })} />
+            </div>
+            <p className="meta">Saved on this device only.</p>
+          </div>
+        </details>
 
         <div className="panel-foot">
           <span>KIZUNA 2026 · ESPRIT<br />Tunisia × Japan</span>
@@ -258,7 +257,7 @@ export default function App() {
           <Hero p={p} s={view} w={w} />
           <Value p={p} s={view} />
           <Live pin={pin} setPin={setPin} sync={sync} />
-          <DaySection p={p} s={view} w={w} steg={steg} pick={pickCut} />
+          <DaySection p={p} s={view} w={w} checkDate={todayTunis} steg={steg} pick={pickCut} />
           <Night p={p} s={view} edit={editMember} remove={removeMember} add={addMember} />
           <Sms p={p} s={view} date={w.date} edit={editMember} pin={pin} setPin={setPin} />
           <Market />
@@ -352,7 +351,7 @@ function Hero({ p, s, w }: { p: Plan; s: Setup; w: Day }) {
   </section>
 }
 
-function DaySection({ p, s, w, steg, pick }: { p: Plan; s: Setup; w: Day; steg: Steg | null; pick: (c: Setup['cut']) => void }) {
+function DaySection({ p, s, w, checkDate, steg, pick }: { p: Plan; s: Setup; w: Day; checkDate: string; steg: Steg | null; pick: (c: Setup['cut']) => void }) {
   const [hot, setHot] = useState<number | null>(null)
   const scale = Math.max(s.pumpM3h, s.outletM3h)
   const ys = p.hours.map(h => 100 - h.level / s.basinM3 * 92)
@@ -361,11 +360,10 @@ function DaySection({ p, s, w, steg, pick }: { p: Plan; s: Setup; w: Day; steg: 
   const firstCut = p.hours.findIndex(h => h.cut)
   const kwh = p.solarKwh + p.gridKwh, ok = p.pumped <= s.quotaM3 + 1e-6
   const live = steg && 'notices' in steg ? steg.notices : null
-  const latest = live?.[0], onDate = live ? noticeFor(live, w.date) : undefined
-  const sameDay = live?.filter(n => n.date === w.date).length ?? 0
+  const latest = live?.[0], onDate = live ? noticeFor(live, checkDate) : undefined
+  const sameDay = live?.filter(n => n.date === checkDate).length ?? 0
   const presets: [string, [number, number] | null][] = [
-    // Newest STEG notices first, then the press-verified ones STEG's site no longer lists.
-    ...[...(live ?? []).slice(0, 3), ...SAVED_NOTICES].map(n => [`${n.window} · ${longDate(n.date)}`, [n.start, n.end % 24]] as [string, [number, number]]),
+    ...(live ?? []).slice(0, 3).map(n => [`${n.window} · ${longDate(n.date)}`, [n.start, n.end % 24]] as [string, [number, number]]),
     ['No cut', null]]
   const h = hot !== null ? p.hours[hot] : null
   return <section id="day" className="day reveal" aria-labelledby="day-title">
@@ -376,11 +374,11 @@ function DaySection({ p, s, w, steg, pick }: { p: Plan; s: Setup; w: Day; steg: 
         {presets.map(([label, cut]) => <button key={label} className="chip" aria-pressed={cut ? s.cut?.[0] === cut[0] && s.cut?.[1] === cut[1] : !s.cut} onClick={() => pick(cut)}>
           {cut && <Icon name="zap" size={15} />}{label}</button>)}
       </div>
-      <p className="chips-note">{live && latest
+      <p className="chips-note">{live
         ? <>Read live from <a href={(steg as { source: string }).source} target="_blank" rel="noopener noreferrer">steg.com.tn</a>: {onDate
-          ? <b>STEG notice for Kebili on {longDate(w.date)} ({onDate.window}), applied{sameDay > 1 ? `; ${sameDay} notices that day, the one over the pumping hours is used` : ''}.</b>
-          : <>no STEG notice for Kebili on {longDate(w.date)}.</>} Latest Kebili notice: {longDate(latest.date)}, {latest.window}{latest.maxBlockHours ? `, cuts of up to ${latest.maxBlockHours} h` : ''}, in <span lang="ar">{latest.localities.slice(0, 6).join('، ')}</span>.</>
-        : steg ? 'steg.com.tn could not be read: showing notices saved from the press.' : 'Reading STEG notices for Kebili…'}
+          ? <b>STEG notice for Kebili on {longDate(checkDate)} ({onDate.window}), applied{sameDay > 1 ? `; ${sameDay} notices that day, the one over the pumping hours is used` : ''}.</b>
+          : <><b>no STEG power cut announced for Kebili on {longDate(checkDate)} ({checkDate})</b> — no cut applied unless you enter one manually in the sidebar.</>}{latest ? <> Last Kebili power cut on steg.com.tn: <b>{longDate(latest.date)} ({latest.window})</b>{latest.maxBlockHours ? `, cuts of up to ${latest.maxBlockHours} h` : ''}, in <span lang="ar">{latest.localities.slice(0, 6).join('، ')}</span> (<a href={latest.url} target="_blank" rel="noopener noreferrer">see official STEG notice ↗</a>).</> : ''}</>
+        : steg ? 'steg.com.tn could not be read: no power cut applied unless you enter one manually.' : 'Reading STEG notices for Kebili from steg.com.tn…'}
         {' '}STEG does not say which hours inside the window are cut, so NOUBA plans the worst case: the whole window.</p>
     </div>
 
