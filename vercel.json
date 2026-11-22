@@ -1,0 +1,4 @@
+{
+  "functions": { "api/ask.ts": { "maxDuration": 30 }, "api/autopilot.ts": { "maxDuration": 60 } },
+  "crons": [{ "path": "/api/autopilot", "schedule": "0 16 * * *" }]
+}
