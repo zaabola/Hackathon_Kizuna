@@ -1,7 +1,7 @@
 // What NOUBA sells and what it is worth to the buyer, computed from the day's real plan (shared by the app and /api/leads).
 import type { Plan } from './planner.ts'
 
-export type PlanId = 'free' | 'pro' | 'gda' | 'partner'
+export type PlanId = 'free' | 'pro'
 export interface Offer { id: PlanId; name: string; price: number | null; unit: string; who: string; features: string[] }
 
 // Launch prices (TND, excl. VAT): hypotheses to validate in the pilot.
@@ -10,10 +10,6 @@ export const OFFERS: Offer[] = [
     features: ['Tonight\'s plan from the live forecast and STEG\'s notices', 'Pump and valve schedule on screen', 'One-tap WhatsApp message to every family'] },
   { id: 'pro', name: 'Well Pro', price: 15, unit: 'TND per well per month', who: 'Farmers with their own well',
     features: ['NOUBA Box on the pump (199 TND once): runs it around cuts and the sun', 'Pumping planned under the quota every day; a metered log for the 2026 well law from the pilot', 'Turn re-sent when STEG announces a cut, and a bot that answers'] },
-  { id: 'gda', name: 'GDA', price: 49, unit: 'TND per borehole per month', who: 'Shared boreholes',
-    features: ['Everything in Well Pro', 'Fair night turns and messages for up to 12 families', 'Water-fee ledger per family, printable schedule'] },
-  { id: 'partner', name: 'Institutions', price: null, unit: 'licence or tender', who: 'CRDA, DGGREE, STEG, installers',
-    features: ['Quota dashboard for a whole aquifer (from year 2)', 'Outage map from the boxes and a peak-shift pilot for STEG (roadmap)', 'White label for solar installers'] },
 ]
 export const offer = (id: PlanId) => OFFERS.find(o => o.id === id)!
 
@@ -74,7 +70,7 @@ export function forecast(scale = 1) {
     const n = { pro: Math.round(g.pro * scale), gda: Math.round(g.gda * scale), crda: Math.floor(g.crda * scale) }
     const avg = (k: keyof typeof n) => (prev[k] + n[k]) / 2
     const boxes = Math.max(0, n.pro - prev.pro) + Math.max(0, n.gda - prev.gda)
-    const subs = avg('pro') * offer('pro').price! * 12 + avg('gda') * offer('gda').price! * 12
+    const subs = avg('pro') * offer('pro').price! * 12
     const licences = avg('crda') * CRDA_LICENCE
     const hardware = boxes * BOX.price
     const revenue = subs + licences + hardware

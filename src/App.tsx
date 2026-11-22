@@ -733,7 +733,7 @@ function Live({ pin, setPin, sync }: { pin: string; setPin: (v: string) => void;
 
 // 五 What the plan is worth, from this day's real plan. Water first; money per cut day, never a month of heatwaves.
 function Value({ p, s }: { p: Plan; s: Setup }) {
-  const v = value(p), o = offer(s.members.length > 1 ? 'gda' : 'pro'), payDays = v.daysToPayYear(o.price!)
+  const v = value(p), o = offer('pro'), payDays = v.daysToPayYear(o.price!)
   const tnd = (x: number) => x.toLocaleString('en-US', { maximumFractionDigits: 1 })
   return <section id="value" className="value reveal" aria-labelledby="value-title">
     <Kicker n="五">Why it pays · computed from this day's plan</Kicker>
@@ -809,7 +809,7 @@ function Market() {
         <label className="field">Name<input required minLength={2} maxLength={60} autoComplete="name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
         <label className="field">Phone<input required type="tel" inputMode="tel" autoComplete="tel" placeholder="98 123 456" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></label>
         <label className="field">Plan<select value={f.plan} onChange={e => setF({ ...f, plan: e.target.value as PlanId })}>{OFFERS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-        <label className="field">{f.plan === 'gda' ? 'Boreholes' : 'Pumps'}<input type="number" min={1} max={500} value={f.units} onChange={e => setF({ ...f, units: Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1))) })} /></label>
+        <label className="field">Pumps<input type="number" min={1} max={500} value={f.units} onChange={e => setF({ ...f, units: Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1))) })} /></label>
         <label className="field">Region<input maxLength={40} autoComplete="address-level1" value={f.region} onChange={e => setF({ ...f, region: e.target.value })} /></label>
         <label className="check consent"><input type="checkbox" required checked={f.consent} onChange={e => setF({ ...f, consent: e.target.checked })} /> NOUBA may call me about a pilot. My number is used for nothing else.</label>
         <button className="primary" disabled={busy}>{busy ? 'Saving…' : 'Reserve my pilot'}</button>
